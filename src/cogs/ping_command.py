@@ -3,9 +3,9 @@ from discord.ext import commands, vbu  # type: ignore
 
 class PingCommand(vbu.Cog):
 
-    @commands.command()
+    @commands.command(name="ping")
     @commands.is_slash_command()
-    async def ping(self, ctx: vbu.SlashContext) -> None:
+    async def _ping_command(self, ctx: vbu.SlashContext) -> None:
         """
         An example ping command.
         """
