@@ -4,15 +4,13 @@ from discord.ext import commands, vbu  # type: ignore
 class PingCommand(vbu.Cog):
 
     @commands.command()
-    async def ping(self, ctx: vbu.Context):
+    @commands.is_slash_command()
+    async def ping(self, ctx: vbu.SlashContext) -> None:
         """
         An example ping command.
         """
 
-        if isinstance(ctx, vbu.SlashContext):
-            await ctx.interaction.response.send_message("Pong!")
-        else:
-            await ctx.send("Pong!")
+        await ctx.interaction.response.send_message("Pong!")
 
 
 def setup(bot: vbu.Bot):
