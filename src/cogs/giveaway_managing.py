@@ -1,6 +1,6 @@
 import asyncio
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import discord  # type: ignore
 from discord import utils as discord_utils  # type: ignore
@@ -10,7 +10,10 @@ from . import utils
 
 
 class GiveawayManaging(vbu.Cog):
-    @commands.command(name="create-giveaway", help="Create a new giveaway!")
+    @commands.command(
+        name="create-giveaway",
+        help="Create a new giveaway!",
+    )
     @commands.is_slash_command()
     async def _create_giveaway_command(self, ctx: vbu.SlashContext) -> None:
         """
@@ -30,10 +33,10 @@ class GiveawayManaging(vbu.Cog):
 
         # Create a testing giveaway.
         giveaway_reward = "1x Classic Nitro"
-        giveaway_ends_at = datetime.utcnow() + timedelta(hours=1)
+        giveaway_ends_at = discord_utils.utcnow() + timedelta(days=1)
         giveaway_message = await ctx.channel.send(
             "Proto giveaway message! Ending at"
-            f" {discord_utils.format_dt(giveaway_ends_at, style='F')}!"
+            f" {discord_utils.format_dt(giveaway_ends_at, style='R')}!"
             f" Reward: {giveaway_reward}"
         )
         giveaway = utils.Giveaway(
