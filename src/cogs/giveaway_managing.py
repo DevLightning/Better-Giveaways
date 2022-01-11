@@ -1,9 +1,10 @@
 import asyncio
 import random
 from datetime import timedelta
+from typing import Optional, List
 
 import discord  # type: ignore
-from discord import utils as discord_utils  # type: ignore
+from discord import utils as discord_utils
 from discord.ext import commands, vbu  # type: ignore
 
 from . import utils
@@ -33,9 +34,9 @@ class GiveawayManaging(vbu.Cog):
 
         # Create a testing giveaway.
         giveaway_reward = "1x Classic Nitro"
-        giveaway_ends_at = discord_utils.utcnow() + timedelta(days=1)
+        giveaway_ends_at = discord_utils.utcnow() + timedelta(seconds=5)
         giveaway_message = await ctx.channel.send(
-            "Proto giveaway message! Ending at"
+            "Created a giveaway\nEnding: "
             f" {discord_utils.format_dt(giveaway_ends_at, style='R')}!"
             f" Reward: {giveaway_reward}"
         )
@@ -49,6 +50,76 @@ class GiveawayManaging(vbu.Cog):
 
         async with vbu.DatabaseConnection() as db:
             await giveaway.update(db)
+
+    @commands.command(
+        name="active-giveaways",
+        help="View all active giveaways in the current server.",
+    )
+    @commands.is_slash_command()
+    @commands.guild_only()
+    async def _active_giveaways_command(
+        self, ctx: vbu.SlashContext, channel: Optional[discord.TextChannel] = None
+    ) -> None:
+        """
+        View all active giveaways in the current server.
+
+        Parameters
+        ----------
+        ctx : vbu.SlashContext
+            The context for the command.
+        channel : discord.TextChannel
+            The channel to view the active giveaways in.
+
+        Returns
+        -------
+        None
+        """
+
+        async with vbu.DatabaseConnection() as db:
+            giveaways = (
+                await utils.get_giveaways(db, channel=channel)
+                if channel is not None
+                else await utils.get_giveaways(db, guild=ctx.guild)
+            )
+
+        if not giveaways:
+            if channel is None:
+                await ctx.interaction.response.send_message(
+                    "No active giveaways in this server :pensive:"
+                )
+            else:
+                if channel == ctx.channel:
+                    await ctx.interaction.response.send_message(
+                        "No active giveaways in this channel :pensive:"
+                    )
+                else:
+                    await ctx.interaction.response.send_message(
+                        f"No active giveaways in {channel.mention} :pensive:"
+                    )
+            return
+
+        # Paginate the active giveaways.
+        def formatter(
+            menu: vbu.Paginator, giveaways: List[utils.Giveaway]
+        ) -> discord.Embed:
+            with vbu.Embed(
+                title="Active Giveaways",
+                description=f"All active giveaways in **{channel.mention}**."
+                if channel is not None
+                else f"All active giveaways in **{ctx.guild}**.",
+                colour=discord.colour.Colour.green(),
+            ) as embed:
+                for giveaway in giveaways:
+                    embed.add_field(
+                        giveaway.reward,
+                        f"[Jump!]({giveaway.message_url})  Ending: {discord_utils.format_dt(giveaway.ends_at, style='R')}",
+                        inline=False,
+                    )
+                embed.set_footer(f"Page {menu.current_page + 1}/{menu.max_pages}")
+            return embed
+
+        paginator = vbu.Paginator(giveaways, per_page=5, formatter=formatter)
+        await paginator.start(ctx)
 
 
 def setup(bot: vbu.Bot):
