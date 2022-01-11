@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, List, Union, overload
 
+import discord  # type: ignore
 from discord.ext import vbu  # type: ignore
 
 
@@ -42,6 +43,10 @@ class Giveaway:
     message_id: int
     ends_at: datetime
     reward: str
+
+    @property
+    def message_url(self) -> str:
+        return f"https://discordapp.com/channels/{self.guild_id}/{self.channel_id}/{self.message_id}"
 
     @classmethod
     def from_dict(cls, data: GiveawayDict) -> Giveaway:
@@ -140,3 +145,137 @@ class Giveaway:
             self.ends_at,
             self.reward,
         )
+
+    async def end(self, db: vbu.DatabaseConnection, bot: vbu.Bot) -> None:
+        """
+        End the giveaway.
+
+        Parameters
+        ----------
+        db : vbu.DatabaseConnection
+            The database connection to use.
+
+        Returns
+        -------
+        None
+        """
+
+        # Delete the giveaway from the database.
+        await db(
+            """
+            DELETE FROM giveaways
+            WHERE guild_id = $1 AND channel_id = $2 AND message_id = $3
+            """,
+            self.guild_id,
+            self.channel_id,
+            self.message_id,
+        )
+
+        # Respond to the giveaway message with the winner.
+        channel = bot.get_channel(self.channel_id)
+        if channel is None:
+            return
+        try:
+            message = await channel.fetch_message(self.message_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return
+        await message.reply(f"{self.reward} has been given to the winner!")
+
+
+@overload
+async def get_giveaways(
+    db: vbu.DatabaseConnection, *, guild: Optional[Union[discord.Guild, int]]
+) -> Optional[List[Giveaway]]:
+    ...
+
+
+@overload
+async def get_giveaways(
+    db: vbu.DatabaseConnection, *, channel: Optional[Union[discord.TextChannel, int]]
+) -> Optional[List[Giveaway]]:
+    ...
+
+
+@overload
+async def get_giveaways(
+    db: vbu.DatabaseConnection, *, message: Optional[Union[discord.PartialMessage, int]]
+) -> Optional[Giveaway]:
+    ...
+
+
+@overload
+async def get_giveaways(db: vbu.DatabaseConnection) -> Optional[List[Giveaway]]:
+    ...
+
+
+async def get_giveaways(
+    db: vbu.DatabaseConnection,
+    *,
+    guild: Union[discord.Guild, int] = None,
+    channel: Union[discord.TextChannel, int] = None,
+    message: Union[discord.PartialMessage, int] = None,
+) -> Optional[Union[List[Giveaway], Giveaway]]:
+    """
+    Fetch a list of giveaways from the database.
+
+    Parameters
+    ----------
+    db : vbu.DatabaseConnection
+        The database connection to use.
+    guild : Union[discord.Guild, int]
+        The guild to fetch giveaways from.
+    channel : Union[discord.TextChannel, int]
+        The channel to fetch giveaways from.
+    message : Union[discord.PartialMessage, int]
+        The message to fetch giveaways from.
+
+    Returns
+    -------
+    List[Giveaway]
+        The list of giveaways.
+
+    Raises
+    ------
+    ValueError
+        If you don't provide exactly one of `guild`, `channel`, or `message`.
+    """
+
+    if len([arg for arg in (guild, channel, message) if arg is not None]) > 1:
+        raise ValueError(
+            "Must provide at most one of `guild`, `channel`, or `message`."
+        )
+
+    if guild is not None:
+        guild_id = guild.id if isinstance(guild, discord.Guild) else guild
+        payload = await db(
+            """
+            SELECT * FROM giveaways WHERE guild_id = $1
+            """,
+            guild_id,
+        )
+    elif channel is not None:
+        channel_id = channel.id if isinstance(channel, discord.TextChannel) else channel
+        payload = await db(
+            """
+            SELECT * FROM giveaways WHERE channel_id = $1
+            """,
+            channel_id,
+        )
+    elif message is not None:
+        message_id = (
+            message.id if isinstance(message, discord.PartialMessage) else message
+        )
+        payload = await db(
+            """
+            SELECT * FROM giveaways WHERE message_id = $1
+            """,
+            message_id,
+        )
+    else:
+        payload = await db(
+            """
+            SELECT * FROM giveaways
+            """
+        )
+
+    return [Giveaway.from_dict(data) for data in payload]
