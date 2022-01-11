@@ -6,7 +6,7 @@ import discord  # type: ignore
 from discord import utils as discord_utils  # type: ignore
 from discord.ext import commands, vbu  # type: ignore
 
-import utils
+from . import utils
 
 
 class GiveawayManaging(vbu.Cog):
