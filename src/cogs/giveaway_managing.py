@@ -44,6 +44,9 @@ class GiveawayManaging(vbu.Cog):
             giveaway_reward,
         )
 
+        async with vbu.DatabaseConnection() as db:
+            await giveaway.update(db)
+
 
 def setup(bot: vbu.Bot):
     x = GiveawayManaging(bot)
