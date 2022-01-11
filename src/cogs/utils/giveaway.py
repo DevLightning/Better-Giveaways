@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TypedDict, Optional, List, Union, overload
@@ -176,10 +177,33 @@ class Giveaway:
         if channel is None:
             return
         try:
-            message = await channel.fetch_message(self.message_id)
+            # ? Reason for seemingly reduntant typehint: For some reason
+            # ? `fetch_message` returns `Any |discord.Message`? Not sure why
+            message: discord.Message = await channel.fetch_message(self.message_id)
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             return
-        await message.reply(f"{self.reward} has been given to the winner!")
+
+        try:
+            reaction = next(
+                reaction for reaction in message.reactions if reaction.emoji == "🎉"
+            )
+        except StopIteration:
+            reaction = None
+        finally:
+            if reaction is None:
+                return
+
+        participants = [user async for user in reaction.users() if not user.bot]
+
+        if not participants:
+            await message.reply(f"Nobody joined :< `({len(participants)} participants)`")
+            return
+
+        winner = random.choice(participants)
+
+        await message.reply(
+            f"**{winner.mention}** has won **{self.reward}**! ({len(participants)} participants)"
+        )
 
 
 @overload
