@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TypedDict, Optional
-from __future__ import annotations
 
 from discord.ext import vbu  # type: ignore
 
