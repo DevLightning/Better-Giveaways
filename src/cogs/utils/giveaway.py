@@ -133,5 +133,10 @@ class Giveaway:
                 message_id = $3,
                 ends_at = $4,
                 reward = $5
-            """
+            """,
+            self.guild_id,
+            self.channel_id,
+            self.message_id,
+            self.ends_at,
+            self.reward,
         )
