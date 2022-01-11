@@ -40,6 +40,7 @@ class GiveawayManaging(vbu.Cog):
             f" {discord_utils.format_dt(giveaway_ends_at, style='R')}!"
             f" Reward: {giveaway_reward}"
         )
+        await giveaway_message.add_reaction("🎉")
         giveaway = utils.Giveaway(
             ctx.guild.id,
             ctx.channel.id,
