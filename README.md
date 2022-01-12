@@ -8,4 +8,4 @@ Better Giveaways is a bot that will change the experience of using a giveaway bo
 - Formatting docstrings using ([the NumPy Style guide](https://numpydoc.readthedocs.io/en/latest/format.html))
 
 TODO: Fix this README lol
-Fixing read me its kinda important ngl
+<br>Fixing read me its kinda important ngl
