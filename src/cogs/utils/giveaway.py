@@ -196,7 +196,9 @@ class Giveaway:
         participants = [user async for user in reaction.users() if not user.bot]
 
         if not participants:
-            await message.reply(f"Nobody joined :< `({len(participants)} participants)`")
+            await message.reply(
+                f"Nobody joined :< `({len(participants)} participants)`"
+            )
             return
 
         winner = random.choice(participants)

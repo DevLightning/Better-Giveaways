@@ -34,7 +34,7 @@ class GiveawayManaging(vbu.Cog):
 
         # Create a testing giveaway.
         giveaway_reward = "1x Classic Nitro"
-        giveaway_ends_at = discord_utils.utcnow() + timedelta(seconds=5)
+        giveaway_ends_at = discord_utils.utcnow() + timedelta(minutes=30)
         giveaway_message = await ctx.channel.send(
             "Created a giveaway\nEnding: "
             f" {discord_utils.format_dt(giveaway_ends_at, style='R')}!"
