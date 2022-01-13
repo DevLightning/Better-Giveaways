@@ -45,9 +45,48 @@ class Giveaway:
     ends_at: datetime
     reward: str
 
+    @staticmethod
+    def __generate_id(guild_id: int, channel_id: int, message_id: int) -> str:
+        return f"{guild_id}/{channel_id}/{message_id}"
+
+    @property
+    def _id(self) -> str:
+        """
+        Unique indentifier for the giveaway, based on the guild ID, channel
+        ID, and message ID combined with a forward slash.
+
+        Example
+        -------
+        >>> Giveaway(
+        ...     123,
+        ...     456,
+        ...     789,
+        ...     datetime.now(),
+        ...     "Classic Nitro"
+        ... )._id
+        "123/456/789"
+
+        Returns
+        -------
+        str
+            The unique identifier.
+        """
+
+        return self.__generate_id(self.guild_id, self.channel_id, self.message_id)
+
     @property
     def message_url(self) -> str:
-        return f"https://discordapp.com/channels/{self.guild_id}/{self.channel_id}/{self.message_id}"
+        """
+        Generates a URL to the giveaway message. Equivelant to
+        `https://discord.com/channels/{self.guild_id}/{self.channel_id}/{self.message_id}`.
+
+        Returns
+        -------
+        str
+            The URL.
+        """
+
+        return f"https://discord.com/channels/{self._id}"
 
     @classmethod
     def from_dict(cls, data: GiveawayDict) -> Giveaway:
@@ -100,11 +139,9 @@ class Giveaway:
         # NOTE: We can pretty safely assume that there's either 0 or 1 entries in this `payload` list.
         payload = await db(
             """
-            SELECT * FROM giveaways WHERE guild_id = $1 AND channel_id = $2 AND message_id = $3
+            SELECT * FROM giveaways WHERE id = $1
             """,
-            guild_id,
-            channel_id,
-            message_id,
+            cls.__generate_id(guild_id, channel_id, message_id),
         )
 
         try:
@@ -130,16 +167,18 @@ class Giveaway:
         await db(
             """
             INSERT INTO giveaways
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (
                 guild_id, channel_id, message_id
             ) DO UPDATE SET
-                guild_id = $1,
-                channel_id = $2,
-                message_id = $3,
-                ends_at = $4,
-                reward = $5
+                id = $1,
+                guild_id = $2,
+                channel_id = $3,
+                message_id = $4,
+                ends_at = $5,
+                reward = $6
             """,
+            self._id,
             self.guild_id,
             self.channel_id,
             self.message_id,
@@ -165,11 +204,9 @@ class Giveaway:
         await db(
             """
             DELETE FROM giveaways
-            WHERE guild_id = $1 AND channel_id = $2 AND message_id = $3
+            WHERE id = $1
             """,
-            self.guild_id,
-            self.channel_id,
-            self.message_id,
+            self._id,
         )
 
         # Respond to the giveaway message with the winner.
@@ -206,6 +243,40 @@ class Giveaway:
         await message.reply(
             f"**{winner.mention}** has won **{self.reward}**! ({len(participants)} participants)"
         )
+
+
+async def get_giveaway(db: vbu.DatabaseConnection, id: str) -> Optional[Giveaway]:
+    """
+    Fetch a giveaway from the database.
+
+    Parameters
+    ----------
+    db : vbu.DatabaseConnection
+        The database connection to use.
+    id : str
+        The ID of the giveaway.
+
+    Returns
+    -------
+    Giveaway
+        The new instance of the Giveaway class.
+    None
+        If the giveaway does not exist in the database.
+    """
+
+    # NOTE: We can pretty safely assume that there's either 0 or 1 entries in this `payload` list.
+    payload = await db(
+        """
+        SELECT * FROM giveaways WHERE id = $1
+        """,
+        id,
+    )
+
+    try:
+        data = payload[0]
+        return Giveaway.from_dict(data)
+    except IndexError:
+        return None
 
 
 @overload

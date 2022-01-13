@@ -20,13 +20,16 @@ CREATE TABLE IF NOT EXISTS user_settings(
 
 
 CREATE TABLE IF NOT EXISTS giveaways(
-    guild_id BIGINT,
-    channel_id BIGINT,
-    message_id BIGINT,
-    ends_at timestamptz,
-    reward TEXT,
-    PRIMARY KEY(guild_id, channel_id, message_id)
+    id TEXT PRIMARY KEY,
+    guild_id BIGINT NOT NULL,
+    channel_id BIGINT NOT NULL,
+    message_id BIGINT NOT NULL,
+    ends_at timestamptz NOT NULL,
 );
+
+
+CREATE TABLE IF NOT EXISTS giveaway_rewards()
+
 
 -- CREATE TABLE IF NOT EXISTS role_list(
 --     guild_id BIGINT,
