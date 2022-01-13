@@ -46,7 +46,6 @@ class GiveawayManaging(vbu.Cog):
             ctx.channel.id,
             giveaway_message.id,
             giveaway_ends_at,
-            giveaway_reward,
         )
 
         async with vbu.DatabaseConnection() as db:
@@ -112,7 +111,7 @@ class GiveawayManaging(vbu.Cog):
             ) as embed:
                 for giveaway in giveaways:
                     embed.add_field(
-                        giveaway.reward,
+                        "[reward]",
                         f"[Jump!]({giveaway.message_url})  Ending: {discord_utils.format_dt(giveaway.ends_at, style='R')}",
                         inline=False,
                     )

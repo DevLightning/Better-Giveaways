@@ -19,7 +19,6 @@ class GiveawayDict(TypedDict):
     channel_id: int
     message_id: int
     ends_at: datetime
-    reward: str
 
 
 @dataclass
@@ -43,7 +42,6 @@ class Giveaway:
     channel_id: int
     message_id: int
     ends_at: datetime
-    reward: str
 
     @staticmethod
     def __generate_id(guild_id: int, channel_id: int, message_id: int) -> str:
@@ -167,7 +165,7 @@ class Giveaway:
         await db(
             """
             INSERT INTO giveaways
-            VALUES ($1, $2, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (
                 guild_id, channel_id, message_id
             ) DO UPDATE SET
@@ -176,14 +174,12 @@ class Giveaway:
                 channel_id = $3,
                 message_id = $4,
                 ends_at = $5,
-                reward = $6
             """,
             self._id,
             self.guild_id,
             self.channel_id,
             self.message_id,
             self.ends_at,
-            self.reward,
         )
 
     async def end(self, db: vbu.DatabaseConnection, bot: vbu.Bot) -> None:
@@ -241,7 +237,7 @@ class Giveaway:
         winner = random.choice(participants)
 
         await message.reply(
-            f"**{winner.mention}** has won **{self.reward}**! ({len(participants)} participants)"
+            f"**{winner.mention}** has won! ({len(participants)} participants)"
         )
 
 
