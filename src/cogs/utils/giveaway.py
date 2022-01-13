@@ -9,16 +9,44 @@ import discord  # type: ignore
 from discord.ext import vbu  # type: ignore
 
 
+class GiveawayRoleRewardDict(TypedDict):
+    """
+    A typed dictionary for the GiveawayReward dataclass.
+    """
+
+    # NOTE: Make sure this is equal to the GiveawayRoleReward dataclass.
+    role_id: int
+
+
+@dataclass
+class GiveawayRoleReward:
+    """
+    A givaway role reward dataclass.
+
+    Attributes
+    ----------
+    role_id : int
+        The ID of the Discord role being rewarded.
+    """
+
+    role_id: int
+
+    @classmethod
+    def from_dict(cls, data: GiveawayRoleRewardDict) -> GiveawayRoleReward:
+        return cls(**data)
+
+
 class GiveawayDict(TypedDict):
     """
     A typed dictionary for the Giveaway dataclass.
     """
 
-    # NOTE: Make sure this is equal to the Giveaway dataclass.
+    # NOTE: Make sure this is equal to the Giveaway dataclass or it's typed dict if available.
     guild_id: int
     channel_id: int
     message_id: int
     ends_at: datetime
+    role_rewards: Optional[List[GiveawayRoleRewardDict]]
 
 
 @dataclass
@@ -42,6 +70,7 @@ class Giveaway:
     channel_id: int
     message_id: int
     ends_at: datetime
+    role_rewards: Optional[List[GiveawayRoleReward]] = None
 
     @staticmethod
     def __generate_id(guild_id: int, channel_id: int, message_id: int) -> str:
@@ -102,7 +131,16 @@ class Giveaway:
             The new instance of the Giveaway class.
         """
 
-        return cls(**data)
+        return cls(
+            data["guild_id"],
+            data["channel_id"],
+            data["message_id"],
+            data["ends_at"],
+            [
+                GiveawayRoleReward.from_dict(reward)
+                for reward in data.get("role_rewards") or []
+            ],
+        )
 
     @classmethod
     async def from_database(
@@ -137,7 +175,9 @@ class Giveaway:
         # NOTE: We can pretty safely assume that there's either 0 or 1 entries in this `payload` list.
         payload = await db(
             """
-            SELECT * FROM giveaways WHERE id = $1
+            SELECT *
+            FROM giveaways
+            WHERE id = $1
             """,
             cls.__generate_id(guild_id, channel_id, message_id),
         )
@@ -167,13 +207,13 @@ class Giveaway:
             INSERT INTO giveaways
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (
-                guild_id, channel_id, message_id
+                id
             ) DO UPDATE SET
                 id = $1,
                 guild_id = $2,
                 channel_id = $3,
                 message_id = $4,
-                ends_at = $5,
+                ends_at = $5
             """,
             self._id,
             self.guild_id,
@@ -181,6 +221,20 @@ class Giveaway:
             self.message_id,
             self.ends_at,
         )
+
+        if self.role_rewards is not None:
+            for reward in self.role_rewards:
+                await db(
+                    """
+                    INSERT INTO giveaway_role_rewards
+                    VALUES ($1, $2)
+                    ON CONFLICT (role_id, giveaway_id) DO UPDATE SET
+                        role_id = $1,
+                        giveaway_id = $2
+                    """,
+                    reward.role_id,
+                    self._id,
+                )
 
     async def end(self, db: vbu.DatabaseConnection, bot: vbu.Bot) -> None:
         """
@@ -237,7 +291,7 @@ class Giveaway:
         winner = random.choice(participants)
 
         await message.reply(
-            f"**{winner.mention}** has won! ({len(participants)} participants)"
+            f"**{winner.mention}** has won! ({len(participants)} participants)\ndebug: {self.role_rewards!r}"
         )
 
 
@@ -263,7 +317,9 @@ async def get_giveaway(db: vbu.DatabaseConnection, id: str) -> Optional[Giveaway
     # NOTE: We can pretty safely assume that there's either 0 or 1 entries in this `payload` list.
     payload = await db(
         """
-        SELECT * FROM giveaways WHERE id = $1
+        SELECT *
+        FROM giveaways
+        WHERE id = $1
         """,
         id,
     )
@@ -342,7 +398,9 @@ async def get_giveaways(
         guild_id = guild.id if isinstance(guild, discord.Guild) else guild
         payload = await db(
             """
-            SELECT * FROM giveaways WHERE guild_id = $1
+            SELECT *
+            FROM giveaways
+            WHERE guild_id = $1
             """,
             guild_id,
         )
@@ -350,7 +408,9 @@ async def get_giveaways(
         channel_id = channel.id if isinstance(channel, discord.TextChannel) else channel
         payload = await db(
             """
-            SELECT * FROM giveaways WHERE channel_id = $1
+            SELECT *
+            FROM giveaways
+            WHERE channel_id = $1
             """,
             channel_id,
         )
@@ -360,7 +420,9 @@ async def get_giveaways(
         )
         payload = await db(
             """
-            SELECT * FROM giveaways WHERE message_id = $1
+            SELECT *
+            FROM giveaways
+            WHERE message_id = $1
             """,
             message_id,
         )
@@ -371,4 +433,21 @@ async def get_giveaways(
             """
         )
 
-    return [Giveaway.from_dict(data) for data in payload]
+    payload = {row["id"]: dict(row) for row in payload}
+    payload_role_rewards = await db(
+        """
+        SELECT *
+        FROM giveaway_role_rewards
+        WHERE giveaway_id = ANY($1::text[])
+        """,
+        list(payload),
+    )
+    for row in payload_role_rewards:
+        payload_row = payload[row["giveaway_id"]]
+        try:
+            payload_row["role_rewards"].append({"role_id": row["role_id"]})
+        except KeyError:
+            payload_row["role_rewards"] = [{"role_id": row["role_id"]}]
+
+    val = [Giveaway.from_dict(data) for data in payload.values()]
+    return [Giveaway.from_dict(data) for data in payload.values()]

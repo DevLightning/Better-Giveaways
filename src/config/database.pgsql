@@ -1,3 +1,7 @@
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+
+
 CREATE TABLE IF NOT EXISTS guild_settings(
     guild_id BIGINT PRIMARY KEY,
     prefix TEXT
@@ -24,7 +28,15 @@ CREATE TABLE IF NOT EXISTS giveaways(
     guild_id BIGINT NOT NULL,
     channel_id BIGINT NOT NULL,
     message_id BIGINT NOT NULL,
-    ends_at timestamptz NOT NULL,
+    ends_at timestamptz NOT NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS giveaway_role_rewards(
+    role_id BIGINT NOT NULL,
+    giveaway_id TEXT NOT NULL,
+    FOREIGN KEY (giveaway_id) REFERENCES giveaways(id) ON DELETE CASCADE,
+    PRIMARY KEY (role_id, giveaway_id)
 );
 
 
