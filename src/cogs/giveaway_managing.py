@@ -4,7 +4,7 @@ from datetime import timedelta
 from typing import Optional, List
 
 import discord  # type: ignore
-from discord import utils as discord_utils
+from discord import utils as discord_utils  # type: ignore
 from discord.ext import commands, vbu  # type: ignore
 
 from . import utils
@@ -16,7 +16,12 @@ class GiveawayManaging(vbu.Cog):
         help="Create a new giveaway!",
     )
     @commands.is_slash_command()
-    async def _create_giveaway_command(self, ctx: vbu.SlashContext) -> None:
+    async def _create_giveaway_command(
+        self,
+        ctx: vbu.SlashContext,
+        seconds: int = 60,
+        role: Optional[discord.Role] = None,
+    ) -> None:
         """
         The callback for the create-giveaway bot command. This command creates a new giveaway.
 
@@ -33,12 +38,12 @@ class GiveawayManaging(vbu.Cog):
         await ctx.interaction.response.send_message("Creating a testing giveaway!")
 
         # Create a testing giveaway.
-        giveaway_reward = "1x Classic Nitro"
-        giveaway_ends_at = discord_utils.utcnow() + timedelta(minutes=30)
+        giveaway_reward = utils.GiveawayRoleReward(role.id) if role else None
+        giveaway_ends_at = discord_utils.utcnow() + timedelta(seconds=seconds)
         giveaway_message = await ctx.channel.send(
             "Created a giveaway\nEnding: "
             f" {discord_utils.format_dt(giveaway_ends_at, style='R')}!"
-            f" Reward: {giveaway_reward}"
+            f" Reward: {giveaway_reward or 'nothing lol'}"
         )
         await giveaway_message.add_reaction("🎉")
         giveaway = utils.Giveaway(
@@ -47,6 +52,9 @@ class GiveawayManaging(vbu.Cog):
             giveaway_message.id,
             giveaway_ends_at,
         )
+
+        if giveaway_reward:
+            giveaway.role_rewards = [giveaway_reward]
 
         async with vbu.DatabaseConnection() as db:
             await giveaway.update(db)
@@ -111,7 +119,7 @@ class GiveawayManaging(vbu.Cog):
             ) as embed:
                 for giveaway in giveaways:
                     embed.add_field(
-                        "[reward]",
+                        f"{giveaway.role_rewards}",
                         f"[Jump!]({giveaway.message_url})  Ending: {discord_utils.format_dt(giveaway.ends_at, style='R')}",
                         inline=False,
                     )
