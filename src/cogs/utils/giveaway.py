@@ -394,7 +394,7 @@ async def get_giveaways(
             "Must provide at most one of `guild`, `channel`, or `message`."
         )
 
-    if guild is not None:
+    elif guild is not None:
         guild_id = guild.id if isinstance(guild, discord.Guild) else guild
         payload = await db(
             """
@@ -449,5 +449,4 @@ async def get_giveaways(
         except KeyError:
             payload_row["role_rewards"] = [{"role_id": row["role_id"]}]
 
-    val = [Giveaway.from_dict(data) for data in payload.values()]
     return [Giveaway.from_dict(data) for data in payload.values()]
